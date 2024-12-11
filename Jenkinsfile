@@ -12,18 +12,17 @@ pipeline {
                 echo 'Checking Docker environment and cleaning up previous resources...'
                 script {
                     try {
-                        sh '''
-                        set -e
-                        echo "Checking if Docker is installed..."
-                        docker --version || { echo "Docker is not installed"; exit 1; }
+                        bat '''
+                        echo Checking if Docker is installed...
+                        docker --version || (echo Docker is not installed && exit 1)
 
-                        echo "Checking if Docker Compose is installed..."
-                        docker-compose --version || { echo "Docker Compose is not installed"; exit 1; }
+                        echo Checking if Docker Compose is installed...
+                        docker-compose --version || (echo Docker Compose is not installed && exit 1)
 
-                        echo "Stopping and cleaning up previous containers..."
+                        echo Stopping and cleaning up previous containers...
                         docker-compose down || true
 
-                        echo "Removing Docker network if exists..."
+                        echo Removing Docker network if exists...
                         docker network rm ${NETWORK_NAME} || echo "Network does not exist, skipping."
                         '''
                     } catch (Exception e) {
@@ -38,8 +37,8 @@ pipeline {
                 echo 'Building Docker images...'
                 script {
                     try {
-                        sh '''
-                        echo "Building images with Docker Compose..."
+                        bat '''
+                        echo Building images with Docker Compose...
                         docker-compose build --no-cache --pull
                         '''
                     } catch (Exception e) {
@@ -54,16 +53,19 @@ pipeline {
                 echo 'Starting containers with Docker Compose...'
                 script {
                     try {
-                        sh '''
+                        bat '''
                         docker-compose up -d
-                        echo "Containers are starting, waiting for services to initialize..."
-                        until curl -s http://localhost:2022 > /dev/null; do
-                            echo "Waiting for application to start..."
-                            sleep 5
-                        done
-                        echo "Application is ready!"
+                        echo Containers are starting, waiting for services to initialize...
+                        :loop
+                        curl -s http://localhost:2022 > nul
+                        if %errorlevel% neq 0 (
+                            echo Waiting for application to start...
+                            timeout /t 5
+                            goto loop
+                        )
+                        echo Application is ready!
 
-                        echo "Showing running containers:"
+                        echo Showing running containers:
                         docker ps
                         '''
                     } catch (Exception e) {
@@ -78,12 +80,12 @@ pipeline {
                 echo 'Validating application container...'
                 script {
                     try {
-                        sh '''
-                        echo "Checking if application container is running..."
-                        docker ps | grep ${DOCKER_IMAGE} || { echo "Application container not running!"; exit 1; }
+                        bat '''
+                        echo Checking if application container is running...
+                        docker ps | findstr ${DOCKER_IMAGE} || (echo Application container not running! && exit 1)
 
-                        echo "Checking application accessibility on port 2022..."
-                        curl -I http://localhost:2022 -m 15 || { echo "Application not reachable!"; exit 1; }
+                        echo Checking application accessibility on port 2022...
+                        curl -I http://localhost:2022 -m 15 || (echo Application not reachable! && exit 1)
                         '''
                     } catch (Exception e) {
                         error "Application validation failed: ${e.message}"
@@ -97,16 +99,16 @@ pipeline {
                 echo 'Validating database connection...'
                 script {
                     try {
-                        sh '''
-                        echo "Checking if database container is running..."
-                        docker ps | grep kasir_vnt_db || { echo "Database container not running!"; exit 1; }
+                        bat '''
+                        echo Checking if database container is running...
+                        docker ps | findstr kasir_vnt_db || (echo Database container not running! && exit 1)
 
-                        echo "Validating database connection..."
-                        docker exec $(docker ps -qf "name=kasir_vnt_db") mysql -uroot -p${MYSQL_ROOT_PASSWORD} -e "USE ${MYSQL_DATABASE};" || {
-                            echo "Database validation failed! Checking logs for MySQL container..."
+                        echo Validating database connection...
+                        docker exec $(docker ps -qf "name=kasir_vnt_db") mysql -uroot -p${MYSQL_ROOT_PASSWORD} -e "USE ${MYSQL_DATABASE};" || (
+                            echo Database validation failed! Checking logs for MySQL container...
                             docker logs kasir_vnt_db
                             exit 1
-                        }
+                        )
                         '''
                     } catch (Exception e) {
                         error "Database validation failed: ${e.message}"
@@ -120,9 +122,9 @@ pipeline {
         always {
             echo 'Cleaning up containers and networks...'
             script {
-                sh '''
+                bat '''
                 docker-compose down
-                echo "Cleanup completed."
+                echo Cleanup completed.
                 '''
             }
         }
