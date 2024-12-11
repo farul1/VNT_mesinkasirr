@@ -57,7 +57,11 @@ pipeline {
                         sh '''
                         docker-compose up -d
                         echo "Containers are starting, waiting for services to initialize..."
-                        sleep 20
+                        until curl -s http://localhost:2022 > /dev/null; do
+                            echo "Waiting for application to start..."
+                            sleep 5
+                        done
+                        echo "Application is ready!"
 
                         echo "Showing running containers:"
                         docker ps
@@ -98,7 +102,11 @@ pipeline {
                         docker ps | grep kasir_vnt_db || { echo "Database container not running!"; exit 1; }
 
                         echo "Validating database connection..."
-                        docker exec $(docker ps -qf "name=kasir_vnt_db") mysql -uroot -p${MYSQL_ROOT_PASSWORD} -e "USE ${MYSQL_DATABASE};" || { echo "Database validation failed!"; exit 1; }
+                        docker exec $(docker ps -qf "name=kasir_vnt_db") mysql -uroot -p${MYSQL_ROOT_PASSWORD} -e "USE ${MYSQL_DATABASE};" || {
+                            echo "Database validation failed! Checking logs for MySQL container..."
+                            docker logs kasir_vnt_db
+                            exit 1
+                        }
                         '''
                     } catch (Exception e) {
                         error "Database validation failed: ${e.message}"
