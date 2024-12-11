@@ -14,16 +14,16 @@ pipeline {
                     try {
                         bat '''
                         echo Checking if Docker is installed...
-                        docker --version || (echo Docker is not installed && exit 1)
+                        docker --version || (echo Docker is not installed && exit /b 1)
 
                         echo Checking if Docker Compose is installed...
-                        docker-compose --version || (echo Docker Compose is not installed && exit 1)
+                        docker-compose --version || (echo Docker Compose is not installed && exit /b 1)
 
                         echo Stopping and cleaning up previous containers...
                         docker-compose down || true
 
                         echo Removing Docker network if exists...
-                        docker network rm ${NETWORK_NAME} || echo "Network does not exist, skipping."
+                        docker network rm %NETWORK_NAME% || echo "Network does not exist, skipping."
                         '''
                     } catch (Exception e) {
                         error "Preparation stage failed: ${e.message}"
@@ -82,10 +82,10 @@ pipeline {
                     try {
                         bat '''
                         echo Checking if application container is running...
-                        docker ps | findstr ${DOCKER_IMAGE} || (echo Application container not running! && exit 1)
+                        docker ps | findstr %DOCKER_IMAGE% || (echo Application container not running! && exit /b 1)
 
                         echo Checking application accessibility on port 2022...
-                        curl -I http://localhost:2022 -m 15 || (echo Application not reachable! && exit 1)
+                        curl -I http://localhost:2022 -m 15 || (echo Application not reachable! && exit /b 1)
                         '''
                     } catch (Exception e) {
                         error "Application validation failed: ${e.message}"
@@ -101,13 +101,15 @@ pipeline {
                     try {
                         bat '''
                         echo Checking if database container is running...
-                        docker ps | findstr kasir_vnt_db || (echo Database container not running! && exit 1)
+                        docker ps | findstr kasir_vnt_db || (echo Database container not running! && exit /b 1)
 
                         echo Validating database connection...
-                        docker exec $(docker ps -qf "name=kasir_vnt_db") mysql -uroot -p${MYSQL_ROOT_PASSWORD} -e "USE ${MYSQL_DATABASE};" || (
-                            echo Database validation failed! Checking logs for MySQL container...
-                            docker logs kasir_vnt_db
-                            exit 1
+                        for /f "tokens=*" %%i in ('docker ps -qf "name=kasir_vnt_db"') do (
+                            docker exec %%i mysql -uroot -p%MYSQL_ROOT_PASSWORD% -e "USE %MYSQL_DATABASE%;" || (
+                                echo Database validation failed! Checking logs for MySQL container...
+                                docker logs kasir_vnt_db
+                                exit /b 1
+                            )
                         )
                         '''
                     } catch (Exception e) {
