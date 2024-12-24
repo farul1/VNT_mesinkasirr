@@ -4,7 +4,7 @@ services:
   app:
     build:
       context: .
-    image: kasir_vnt_app
+    image: ${DOCKERHUB_CREDENTIALS_USR}/kasir_vnt_app:latest
     container_name: kasir_vnt_app
     restart: unless-stopped
     tty: true
