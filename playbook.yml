@@ -1,19 +1,32 @@
 ---
-- name: Deploy Application
-  hosts: all
-  become: yes
+- name: Install and configure Apache HTTP server
+  hosts: webservers
+  become: true  # Menjalankan perintah sebagai root
   tasks:
-    - name: Pull Docker Image
-      docker_image:
-        name: farul672/vnt_kasir
-        tag: "{{ docker_tag }}"
-        source: pull
-    
-    - name: Run Docker Container
-      docker_container:
-        name: vnt_kasir_container
-        image: farul672/vnt_kasir:{{ docker_tag }}
-        state: started
-        restart_policy: always
-        ports:
-          - "8080:8080"
+    - name: Install Apache HTTP server
+      yum:
+        name: httpd
+        state: present  # Pastikan httpd terinstal
+
+    - name: Start Apache service
+      service:
+        name: httpd
+        state: started  # Mulai Apache jika belum berjalan
+        enabled: true  # Pastikan Apache berjalan saat boot
+
+    - name: Ensure Apache is running
+      service:
+        name: httpd
+        state: restarted  # Restart Apache jika diperlukan
+
+    - name: Open port 80 in the firewall
+      firewalld:
+        service: http
+        permanent: true
+        state: enabled
+        immediate: yes
+
+    - name: Ensure Apache starts on boot
+      systemd:
+        name: httpd
+        enabled: true
