@@ -1,0 +1,19 @@
+---
+- name: Deploy Application
+  hosts: all
+  become: yes
+  tasks:
+    - name: Pull Docker Image
+      docker_image:
+        name: farul672/vnt_kasir
+        tag: "{{ docker_tag }}"
+        source: pull
+    
+    - name: Run Docker Container
+      docker_container:
+        name: vnt_kasir_container
+        image: farul672/vnt_kasir:{{ docker_tag }}
+        state: started
+        restart_policy: always
+        ports:
+          - "8080:8080"
